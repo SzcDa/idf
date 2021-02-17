@@ -1,0 +1,127 @@
+#!/usr/bin/env python
+#-*- coding: utf-8 -*-
+# Soizic - Inddigo - BEC Paris
+
+
+import pandas as pd
+import numpy as np
+#import matplotlib.pyplot as plt
+#import matplotlib.cbook as cbook
+#pd.options.plotting.backend = "plotly"
+#import plotly.express as px
+import plotly.graph_objects as go
+from ipywidgets import widgets
+
+lowatt = pd.read_csv("export_consos.csv", sep=";", decimal=",", index_col="EI")
+liste46 = pd.read_csv("liste46.csv", sep=",", decimal=",", index_col="EI", header=0)
+vetuste = pd.read_csv("bdd_vetuste.csv", sep=";", decimal=",",index_col="EI")
+
+####     Intégration des données de Lowatt
+
+#lowatt.loc["EI"]["kWhchaleur"]+lowatt.loc["EI"]["kWhélec"]
+    
+lowatt["kWh_ef"] = lowatt["kWhchaleur"]+lowatt["kWhélec"]
+lowatt["kWh_ef/m2"] = lowatt["kWhm2chaleur"]+lowatt["kWh/m²élec"]
+lowatt["etiquette"] = lowatt["Nom EPLE"] + " à "+ lowatt["Ville EPLE"]
+
+
+
+
+liste46c = pd.merge(liste46, lowatt["kWh_ef"], how="left", left_index=True, right_index=True)
+liste46c = pd.merge(liste46c, lowatt["kWh_ef/m2"], how="left", left_index=True, right_index=True)
+liste46c = pd.merge(liste46c, lowatt["etiquette"], how="left", left_index=True, right_index=True)
+liste46c = pd.merge(liste46c, vetuste, how="left", left_index=True, right_index=True)
+
+
+#liste46c.to_csv(path_or_buf="liste46c.csv", index="EI")
+
+style = {'description_width': 'initial'}
+w1 = widgets.IntSlider(value=50,min=0,max=100,step=5,description='Critère patrimonial',continuous_update=False,style=style,
+                        label="label")
+w11 = widgets.IntSlider(value=50,min=0,max=100,step=5,description='Sûreté',continuous_update=False,style=style,
+                        label="label")
+w12 = widgets.IntSlider(value=50,min=0,max=100,step=5,description='Hygiène',continuous_update=False,style=style,
+                        label="label")
+w13 = widgets.IntSlider(value=50,min=0,max=100,step=5,description='Clos-couvert',continuous_update=False,style=style,
+                        label="label")
+w14 = widgets.IntSlider(value=50,min=0,max=100,step=5,description='Installations techniques',continuous_update=False,style=style,
+                        label="label")
+w15 = widgets.IntSlider(value=50,min=0,max=100,step=5,description='Confort adaptation fonctionnelle',continuous_update=False,style=style,
+                        label="label")
+w16 = widgets.IntSlider(value=50,min=0,max=100,step=5,description='Espaces extérieurs VRD',continuous_update=False,style=style,
+                        label="label")
+w2 = widgets.IntSlider(value=50,min=0,max=100,step=5,description='Critère énergétique',continuous_update=False,style=style,
+                        label="label")
+w21 = widgets.IntSlider(value=50,min=0,max=100,step=5,description='kWh/m²',continuous_update=False,style=style,
+                        label="label")
+w22 = widgets.IntSlider(value=50,min=0,max=100,step=5,description='kWh/m²',continuous_update=False,style=style,
+                        label="label")
+
+
+
+
+
+# Assign an empty figure widget with two traces
+trace1 = go.Bar(x=liste46c['A- SECURITE SURETE'], y=liste46c['etiquette'], opacity=0.75, name='kWh_ef/m2', orientation='h')
+#♣trace2 = go.Histogram(x=df['dep_delay'], opacity=0.75, name='Departure Delays')
+g = go.FigureWidget(data=[trace1],
+                    layout=go.Layout(
+                        title=dict(
+                            text='Priorisation des 46 lycées à rénover avant 2027'
+                        ),
+                        uniformtext_mode="show",
+                        font_size=10,
+                        #barmode='overlay',
+                        height=800,
+                    ))
+liste46c["Note patrimoniale"] =  (w11.value * liste46c['A- SECURITE SURETE'] + w12.value * liste46c['B - HYGIENE']+ w13.value * liste46c['C- CLOS COUVERT (STRUCTURE)']+ w14.value * liste46c['D- INSTALLATIONS TECHNIQUES']+ w15.value * liste46c['E- CONFORT ADAPTATION FONCTIONNELLE']+ w16.value * liste46c['F/G- ESPACES EXTERIEURS  VRD']) / (w11.value + w12.value + w13.value + w14.value + w15.value + w16.value)
+ma = max(liste46c['kWh_ef'])
+liste46c["Note énergétique"] = (w21.value * 5 * liste46c['kWh_ef']/ma + w22.value * 5 * liste46c['kWh_ef/m2']/max(liste46c['kWh_ef/m2']))/(w21.value + w22.value)
+liste46c["Note globale"] = (w1.value * liste46c["Note patrimoniale"] + w2.value * liste46c["Note énergétique"])/(w1.value + w2.value)
+x = liste46c["Note globale"]
+
+
+def validate():
+    #if origin.value in df['origin'].unique() and textbox.value in df['carrier'].unique():
+        return True
+
+
+def response(change):
+    #x = [i * w22.value for i in liste46c['kWh_ef/m2']]
+    
+    liste46c["Note patrimoniale"] =  (w11.value * liste46c['A- SECURITE SURETE'] + w12.value * liste46c['B - HYGIENE']+ w13.value * liste46c['C- CLOS COUVERT (STRUCTURE)']+ w14.value * liste46c['D- INSTALLATIONS TECHNIQUES']+ w15.value * liste46c['E- CONFORT ADAPTATION FONCTIONNELLE']+ w16.value * liste46c['F/G- ESPACES EXTERIEURS  VRD']) / (w11.value + w12.value + w13.value + w14.value + w15.value + w16.value)
+    ma = max(liste46c['kWh_ef'])
+    liste46c["Note énergétique"] = (w21.value * 5 * liste46c['kWh_ef']/ma + w22.value * 5 * liste46c['kWh_ef/m2']/max(liste46c['kWh_ef/m2']))/(w21.value + w22.value)
+    liste46c["Note globale"] = (w1.value * liste46c["Note patrimoniale"] + w2.value * liste46c["Note énergétique"])/(w1.value + w2.value)
+    x = liste46c["Note globale"]
+    ordre = liste46c[["Note globale" ,"etiquette", "Note patrimoniale","Note énergétique"]]
+    with g.batch_update():
+        g.data[0].x = x
+        g.data[0].y = liste46c['etiquette']
+    
+
+
+c1 = widgets.HTML(value="<b>Critère 1 : Note patrimoniale</b>")
+c11 = widgets.HTML(value="Sous-critère 1.1 : Note sûreté")
+c12 = widgets.HTML(value="Sous-critère 1.2 : Note hygiène")
+c13 = widgets.HTML(value="Sous-critère 1.3 : Clos-couvert (structure)")
+c14 = widgets.HTML(value="Sous-critère 1.4 : Installations techniques")
+c15 = widgets.HTML(value="Sous-critère 1.5 : Confort adaptation fonctionnelle")
+c16 = widgets.HTML(value="Sous-critère 1.6 : Espaces extérieurs VRD")
+c2 = widgets.HTML(value="<br><b>Critère 2 : Note énergétique</b>")
+c21 = widgets.HTML(value="Sous-critère 2.1 : Consommation globale")
+c22 = widgets.HTML(value="Sous-critère 2.2 : Consommation surfacique")
+
+w1.observe(response, names="value")
+w11.observe(response, names="value")
+w12.observe(response, names="value")
+w13.observe(response, names="value")
+w14.observe(response, names="value")
+w15.observe(response, names="value")
+w16.observe(response, names="value")
+w2.observe(response, names="value")
+w21.observe(response, names="value")
+w22.observe(response, names="value")
+
+widgets.VBox([c1,w1,c11,w11,c12,w12,c13,w13,c14,w14,c15,w15,c16,w16,c2,w2, c21,w21,c22,w22,g])
+
